@@ -1,63 +1,63 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <future>    // для асинхронных задач
-#include <iterator>  // для std::distance
-#include <clocale>   // для поддержки русского языка
+#include <future>    // РґР»СЏ Р°СЃРёРЅС…СЂРѕРЅРЅС‹С… Р·Р°РґР°С‡
+#include <iterator>  // РґР»СЏ std::distance
+#include <clocale>   // РґР»СЏ РїРѕРґРґРµСЂР¶РєРё СЂСѓСЃСЃРєРѕРіРѕ СЏР·С‹РєР°
 
-// Параллельная версия for_each с рекурсивным разделением
+// РџР°СЂР°Р»Р»РµР»СЊРЅР°СЏ РІРµСЂСЃРёСЏ for_each СЃ СЂРµРєСѓСЂСЃРёРІРЅС‹Рј СЂР°Р·РґРµР»РµРЅРёРµРј
 template<typename Iterator, typename Func>
 void parallel_for_each(Iterator first, Iterator last, Func&& func, size_t min_block_size = 1000)
 {
-    // Вычисляем размер обрабатываемого диапазона
+    // Р’С‹С‡РёСЃР»СЏРµРј СЂР°Р·РјРµСЂ РѕР±СЂР°Р±Р°С‚С‹РІР°РµРјРѕРіРѕ РґРёР°РїР°Р·РѕРЅР°
     const size_t size = std::distance(first, last);
 
-    // Если размер меньше минимального блока, обрабатываем последовательно
+    // Р•СЃР»Рё СЂР°Р·РјРµСЂ РјРµРЅСЊС€Рµ РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ Р±Р»РѕРєР°, РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ
     if (size < min_block_size)
     {
         std::for_each(first, last, std::forward<Func>(func));
         return;
     }
 
-    // Находим середину диапазона
+    // РќР°С…РѕРґРёРј СЃРµСЂРµРґРёРЅСѓ РґРёР°РїР°Р·РѕРЅР°
     Iterator middle = first;
     std::advance(middle, size / 2);
 
-    // Рекурсивно запускаем parallel_for_each для каждой половины асинхронно
+    // Р РµРєСѓСЂСЃРёРІРЅРѕ Р·Р°РїСѓСЃРєР°РµРј parallel_for_each РґР»СЏ РєР°Р¶РґРѕР№ РїРѕР»РѕРІРёРЅС‹ Р°СЃРёРЅС…СЂРѕРЅРЅРѕ
     auto future = std::async(std::launch::async,
         [first, middle, &func, min_block_size]()
         {
             parallel_for_each(first, middle, std::forward<Func>(func), min_block_size);
         });
 
-    // Обрабатываем вторую половину в текущем потоке
+    // РћР±СЂР°Р±Р°С‚С‹РІР°РµРј РІС‚РѕСЂСѓСЋ РїРѕР»РѕРІРёРЅСѓ РІ С‚РµРєСѓС‰РµРј РїРѕС‚РѕРєРµ
     parallel_for_each(middle, last, std::forward<Func>(func), min_block_size);
 
-    // Дожидаемся завершения асинхронной задачи
+    // Р”РѕР¶РёРґР°РµРјСЃСЏ Р·Р°РІРµСЂС€РµРЅРёСЏ Р°СЃРёРЅС…СЂРѕРЅРЅРѕР№ Р·Р°РґР°С‡Рё
     future.get();
 }
 
 int main()
 {
-    // Устанавливаем локаль для поддержки русского языка
+    // РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј Р»РѕРєР°Р»СЊ РґР»СЏ РїРѕРґРґРµСЂР¶РєРё СЂСѓСЃСЃРєРѕРіРѕ СЏР·С‹РєР°
     setlocale(LC_ALL, "Russian");
 
     std::vector<int> numbers = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
-    std::cout << "Исходный массив:\n";
+    std::cout << "РСЃС…РѕРґРЅС‹Р№ РјР°СЃСЃРёРІ:\n";
     for (const auto& num : numbers)
     {
         std::cout << num << " ";
     }
     std::cout << "\n\n";
 
-    // Функция для обработки элементов (возводит в квадрат)
+    // Р¤СѓРЅРєС†РёСЏ РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё СЌР»РµРјРµРЅС‚РѕРІ (РІРѕР·РІРѕРґРёС‚ РІ РєРІР°РґСЂР°С‚)
     auto square = [](int& n) { n *= n; };
 
-    // Применяем parallel_for_each
+    // РџСЂРёРјРµРЅСЏРµРј parallel_for_each
     parallel_for_each(numbers.begin(), numbers.end(), square);
 
-    std::cout << "Массив после возведения в квадрат:\n";
+    std::cout << "РњР°СЃСЃРёРІ РїРѕСЃР»Рµ РІРѕР·РІРµРґРµРЅРёСЏ РІ РєРІР°РґСЂР°С‚:\n";
     for (const auto& num : numbers)
     {
         std::cout << num << " ";
